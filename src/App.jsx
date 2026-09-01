@@ -27,27 +27,36 @@ function formatDate(d) {
 
 export default function App() {
   const [rows, setRows] = useState([]);
+  const [projectNames, setProjectNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
+  const [zonaFilter, setZonaFilter] = useState("Todas");
+  const [proyectoFilter, setProyectoFilter] = useState("Todos");
   const [resolvingId, setResolvingId] = useState(null);
   const [lastSync, setLastSync] = useState(null);
 
   const fetchRows = useCallback(async () => {
     setError(null);
-    const { data, error: err } = await supabase
-      .from("devoluciones")
-      .select("*")
-      .eq("resuelto", false)
-      .order("created_at", { ascending: false });
+    const [{ data, error: err }, { data: proyectosData }] = await Promise.all([
+      supabase.from("devoluciones").select("*").eq("resuelto", false).order("created_at", { ascending: false }),
+      supabase.from("proyectos").select("*"),
+    ]);
     if (err) {
       setError(err.message);
     } else {
       setRows(data || []);
       setLastSync(new Date());
     }
+    if (proyectosData) {
+      const map = {};
+      for (const p of proyectosData) map[p.campaign_id] = p.nombre;
+      setProjectNames(map);
+    }
     setLoading(false);
   }, []);
+
+  const proyectoNombre = useCallback((id) => projectNames[id] || (id ? `Proyecto ${id}` : "Sin proyecto"), [projectNames]);
 
   useEffect(() => {
     fetchRows();
@@ -77,22 +86,33 @@ export default function App() {
     setResolvingId(null);
   }
 
+  const zonaOptions = useMemo(() => {
+    return Array.from(new Set(rows.map((r) => r.zona || "Sin clasificar"))).sort();
+  }, [rows]);
+
+  const proyectoOptions = useMemo(() => {
+    const ids = Array.from(new Set(rows.map((r) => r.proyecto).filter(Boolean)));
+    return ids.map((id) => ({ id, nombre: proyectoNombre(id) })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [rows, proyectoNombre]);
+
+  const filteredRows = useMemo(() => {
+    const q = search.toLowerCase();
+    return rows.filter((r) => {
+      if (zonaFilter !== "Todas" && (r.zona || "Sin clasificar") !== zonaFilter) return false;
+      if (proyectoFilter !== "Todos" && String(r.proyecto) !== String(proyectoFilter)) return false;
+      if (!q) return true;
+      return [r.cliente, r.zona, r.numero, proyectoNombre(r.proyecto), r.agente].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+    });
+  }, [rows, search, zonaFilter, proyectoFilter, proyectoNombre]);
+
   const zoneCounts = useMemo(() => {
     const m = {};
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const z = r.zona || "Sin clasificar";
       m[z] = (m[z] || 0) + 1;
     }
     return Object.entries(m).map(([zona, cantidad]) => ({ zona, cantidad })).sort((a, b) => b.cantidad - a.cantidad);
-  }, [rows]);
-
-  const filteredRows = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      [r.cliente, r.zona, r.numero, r.proyecto, r.agente].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
-    );
-  }, [rows, search]);
+  }, [filteredRows]);
 
   return (
     <div style={{ background: INK, color: TEXT, minHeight: "100vh", fontFamily: "'IBM Plex Sans', ui-sans-serif, system-ui", padding: "28px 24px" }}>
@@ -151,12 +171,30 @@ export default function App() {
           <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: `1px solid ${LINE}` }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>Pendientes</span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar cliente, zona, número…"
-                style={{ background: INK, color: TEXT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", fontSize: 12, width: 220 }}
-              />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <select
+                  value={zonaFilter}
+                  onChange={(e) => setZonaFilter(e.target.value)}
+                  style={{ background: INK, color: TEXT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
+                >
+                  <option value="Todas">Todas las zonas</option>
+                  {zonaOptions.map((z) => <option key={z} value={z}>{z}</option>)}
+                </select>
+                <select
+                  value={proyectoFilter}
+                  onChange={(e) => setProyectoFilter(e.target.value)}
+                  style={{ background: INK, color: TEXT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px", fontSize: 12, maxWidth: 160 }}
+                >
+                  <option value="Todos">Todos los proyectos</option>
+                  {proyectoOptions.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar…"
+                  style={{ background: INK, color: TEXT, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 10px", fontSize: 12, width: 140 }}
+                />
+              </div>
             </div>
             <div className="scroll" style={{ maxHeight: 560, overflowY: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -164,6 +202,7 @@ export default function App() {
                   <tr style={{ position: "sticky", top: 0, background: PANEL_2 }}>
                     <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Cliente</th>
                     <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Zona</th>
+                    <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Proyecto</th>
                     <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Creado</th>
                     <th style={{ textAlign: "center", padding: "9px 14px", color: MUTED, fontWeight: 500 }}></th>
                   </tr>
@@ -176,6 +215,7 @@ export default function App() {
                         <div className="mono" style={{ color: MUTED, fontSize: 11.5 }}>{r.numero}</div>
                       </td>
                       <td style={{ padding: "9px 14px", color: TEXT }}>{r.zona || "Sin clasificar"}</td>
+                      <td style={{ padding: "9px 14px", color: MUTED, fontSize: 12.5 }}>{proyectoNombre(r.proyecto)}</td>
                       <td className="mono" style={{ padding: "9px 14px", color: MUTED, fontSize: 12 }}>{formatDate(r.fecha_llamada || r.created_at)}</td>
                       <td style={{ padding: "9px 14px", textAlign: "center" }}>
                         <button
