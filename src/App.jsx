@@ -238,17 +238,19 @@ export default function App() {
 
           <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Pendientes por proyecto</div>
-            <ResponsiveContainer width="100%" height={Math.max(200, projectCounts.length * 30)}>
-              <BarChart data={projectCounts} layout="vertical" margin={{ left: 10, right: 24 }}>
-                <CartesianGrid stroke={LINE} horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} axisLine={{ stroke: LINE }} tickLine={false} />
-                <YAxis type="category" dataKey="proyecto" tick={{ fill: TEXT, fontSize: 11.5 }} width={130} axisLine={{ stroke: LINE }} tickLine={false} />
-                <Tooltip contentStyle={{ background: PANEL_2, border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: TEXT }} />
-                <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
-                  {projectCounts.map((_, i) => <Cell key={i} fill={ZONE_COLORS[i % ZONE_COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="scroll" style={{ maxHeight: 520, overflowY: "auto" }}>
+              <ResponsiveContainer width="100%" height={Math.max(220, projectCounts.length * 42)}>
+                <BarChart data={projectCounts} layout="vertical" margin={{ left: 10, right: 24 }} barCategoryGap={10}>
+                  <CartesianGrid stroke={LINE} horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} axisLine={{ stroke: LINE }} tickLine={false} />
+                  <YAxis type="category" dataKey="proyecto" tick={{ fill: TEXT, fontSize: 11.5 }} width={140} axisLine={{ stroke: LINE }} tickLine={false} interval={0} />
+                  <Tooltip contentStyle={{ background: PANEL_2, border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: TEXT }} />
+                  <Bar dataKey="cantidad" radius={[0, 4, 4, 0]} barSize={20}>
+                    {projectCounts.map((_, i) => <Cell key={i} fill={ZONE_COLORS[i % ZONE_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
