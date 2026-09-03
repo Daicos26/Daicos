@@ -105,14 +105,14 @@ export default function App() {
     });
   }, [rows, search, zonaFilter, proyectoFilter, proyectoNombre]);
 
-  const zoneCounts = useMemo(() => {
+  const projectCounts = useMemo(() => {
     const m = {};
     for (const r of filteredRows) {
-      const z = r.zona || "Sin clasificar";
-      m[z] = (m[z] || 0) + 1;
+      const p = proyectoNombre(r.proyecto);
+      m[p] = (m[p] || 0) + 1;
     }
-    return Object.entries(m).map(([zona, cantidad]) => ({ zona, cantidad })).sort((a, b) => b.cantidad - a.cantidad);
-  }, [filteredRows]);
+    return Object.entries(m).map(([proyecto, cantidad]) => ({ proyecto, cantidad })).sort((a, b) => b.cantidad - a.cantidad);
+  }, [filteredRows, proyectoNombre]);
 
   return (
     <div style={{ background: INK, color: TEXT, minHeight: "100vh", fontFamily: "'IBM Plex Sans', ui-sans-serif, system-ui", padding: "28px 24px" }}>
@@ -203,6 +203,7 @@ export default function App() {
                     <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Cliente</th>
                     <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Zona</th>
                     <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Proyecto</th>
+                    <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Agente</th>
                     <th style={{ textAlign: "left", padding: "9px 14px", color: MUTED, fontWeight: 500 }}>Creado</th>
                     <th style={{ textAlign: "center", padding: "9px 14px", color: MUTED, fontWeight: 500 }}></th>
                   </tr>
@@ -216,6 +217,7 @@ export default function App() {
                       </td>
                       <td style={{ padding: "9px 14px", color: TEXT }}>{r.zona || "Sin clasificar"}</td>
                       <td style={{ padding: "9px 14px", color: MUTED, fontSize: 12.5 }}>{proyectoNombre(r.proyecto)}</td>
+                      <td style={{ padding: "9px 14px", color: MUTED, fontSize: 12.5 }}>{r.agente || "—"}</td>
                       <td className="mono" style={{ padding: "9px 14px", color: MUTED, fontSize: 12 }}>{formatDate(r.fecha_llamada || r.created_at)}</td>
                       <td style={{ padding: "9px 14px", textAlign: "center" }}>
                         <button
@@ -235,15 +237,15 @@ export default function App() {
           </div>
 
           <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Pendientes por zona</div>
-            <ResponsiveContainer width="100%" height={Math.max(200, zoneCounts.length * 30)}>
-              <BarChart data={zoneCounts} layout="vertical" margin={{ left: 10, right: 24 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Pendientes por proyecto</div>
+            <ResponsiveContainer width="100%" height={Math.max(200, projectCounts.length * 30)}>
+              <BarChart data={projectCounts} layout="vertical" margin={{ left: 10, right: 24 }}>
                 <CartesianGrid stroke={LINE} horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} axisLine={{ stroke: LINE }} tickLine={false} />
-                <YAxis type="category" dataKey="zona" tick={{ fill: TEXT, fontSize: 11.5 }} width={120} axisLine={{ stroke: LINE }} tickLine={false} />
+                <YAxis type="category" dataKey="proyecto" tick={{ fill: TEXT, fontSize: 11.5 }} width={130} axisLine={{ stroke: LINE }} tickLine={false} />
                 <Tooltip contentStyle={{ background: PANEL_2, border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: TEXT }} />
                 <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
-                  {zoneCounts.map((_, i) => <Cell key={i} fill={ZONE_COLORS[i % ZONE_COLORS.length]} />)}
+                  {projectCounts.map((_, i) => <Cell key={i} fill={ZONE_COLORS[i % ZONE_COLORS.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
